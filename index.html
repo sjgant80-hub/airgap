@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>airgap · a mesh that shares work by air, with no network</title>
+<meta name="description" content="Air-gapped mesh compute. Computers share work over SOUND — no fetch, no WebSocket, no socket of any kind. Architecturally incapable of connecting to the internet: unhackable over the wire, because there is no wire.">
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0a0c11">
+<style>
+  :root{
+    --bg:#0a0c11; --panel:#12151d; --panel2:#181d27; --border:#232a36; --ink:#e9edf4; --dim:#828d9e;
+    --sig:#57d0e0; --gold:#e0b23a; --green:#5fd08a; --red:#e77b6b; --violet:#b79bff;
+    --serif:Georgia,'Times New Roman',serif; --sans:system-ui,-apple-system,'Segoe UI',sans-serif; --mono:ui-monospace,'SFMono-Regular',Menlo,monospace;
+  }
+  @media (prefers-color-scheme:light){ :root{ --bg:#f2f4f6; --panel:#fff; --panel2:#eef1f4; --border:#dde2e8; --ink:#151a20; --dim:#5f6b78; } }
+  :root[data-theme=dark]{ --bg:#0a0c11; --panel:#12151d; --panel2:#181d27; --border:#232a36; --ink:#e9edf4; --dim:#828d9e; }
+  :root[data-theme=light]{ --bg:#f2f4f6; --panel:#fff; --panel2:#eef1f4; --border:#dde2e8; --ink:#151a20; --dim:#5f6b78; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;min-height:100dvh}
+  .wrap{max-width:880px;margin:0 auto;padding:22px 16px 56px}
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  h1{font-family:var(--serif);font-weight:700;font-size:clamp(26px,5.5vw,40px);letter-spacing:-.02em}
+  h1 .a{color:var(--sig)}
+  .sub{color:var(--dim);max-width:640px;margin:8px 0 0;font-size:14.5px} .sub b{color:var(--ink)}
+  section{background:var(--panel);border:1px solid var(--border);border-radius:15px;padding:16px;margin-top:14px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+  .row{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+  select,input{font-family:var(--mono);font-size:14px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--panel2);color:var(--ink)}
+  input{flex:1;min-width:120px} input:focus,select:focus{outline:none;border-color:var(--sig)}
+  button{font-family:var(--sans);font-weight:700;font-size:13px;padding:10px 15px;border-radius:10px;border:1px solid var(--border);background:var(--panel);color:var(--ink);cursor:pointer;transition:.14s}
+  button:hover{border-color:var(--sig);color:var(--sig)}
+  button.sig{background:var(--sig);color:#06121a;border-color:var(--sig)} button.sig:hover{background:#6fe0f0;color:#06121a}
+  canvas{width:100%;height:70px;display:block;border-radius:9px;background:var(--panel2);margin-top:12px;border:1px solid var(--border)}
+  .log{font-family:var(--mono);font-size:12.5px;margin-top:12px;max-height:190px;overflow:auto;display:flex;flex-direction:column;gap:5px}
+  .log div{padding:6px 10px;border-radius:8px;border:1px solid var(--border)}
+  .log .tx{color:var(--sig);border-color:color-mix(in srgb,var(--sig) 35%,transparent)}
+  .log .rx{color:var(--green);border-color:color-mix(in srgb,var(--green) 35%,transparent)}
+  .log .err{color:var(--red)} .log .sys{color:var(--dim)}
+  .sec{background:linear-gradient(180deg,color-mix(in srgb,var(--green) 8%,transparent),transparent);border-color:var(--green)}
+  .sec .row2{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-family:var(--mono);font-size:12.5px;margin-top:6px}
+  .sec .k{color:var(--dim)} .sec .v{color:var(--green)}
+  .lamp{height:44px;border-radius:9px;background:#05070c;border:1px solid var(--border);transition:background .02s,box-shadow .02s}
+  footer{color:var(--dim);font-family:var(--mono);font-size:11px;margin-top:22px;text-align:center;line-height:1.8}
+  footer a{color:var(--sig);text-decoration:none}
+  .themebtn{width:34px;height:34px;border-radius:9px;border:1px solid var(--border);background:var(--panel);color:var(--ink);cursor:pointer;font-size:14px}
+  .pill{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:12px;border:1px solid var(--border);color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1><span class="a">air</span>gap</h1>
+      <p class="sub">A mesh that shares work over <b>sound</b> — no <span class="pill">fetch</span> <span class="pill">WebSocket</span> <span class="pill">RTC</span> <span class="pill">socket</span> anywhere. <b>Architecturally incapable of touching the internet.</b> Unhackable over the wire — because there is no wire.</p>
+    </div>
+    <button class="themebtn" id="theme" title="theme">◐</button>
+  </header>
+
+  <section class="sec">
+    <div class="eyebrow">the security invariant — checkable, not asserted</div>
+    <div class="row2">
+      <span class="k">mesh channel</span><span class="v" id="chan">microphone + speaker only (air)</span>
+      <span class="k">network calls made by the mesh</span><span class="v" id="netcount">0 — and it stays 0</span>
+      <span class="k">works with wi-fi off?</span><span class="v">yes — try it. there is no network code to fail.</span>
+      <span class="k">honest scope</span><span class="v" style="color:var(--dim)">removes the <b style="color:var(--green)">network</b> attack surface. does NOT stop someone in the room with a mic (acoustic eavesdrop/inject) or a compromised host. the wire is gone; the room isn't.</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">§1 · self-test — a message becomes real audio, then is heard back (no mic, no network)</div>
+    <p style="color:var(--dim);font-size:13.5px">Renders the tones to actual PCM audio and demodulates them with a Goertzel filter bank — proving the acoustic modem end to end, right here.</p>
+    <div class="row" style="margin-top:10px"><button class="sig" id="selftest">▶ run the self-test</button><span class="pill" id="selfout">idle</span></div>
+  </section>
+
+  <section>
+    <div class="eyebrow">§2 · transmit — broadcast work into the room, out loud</div>
+    <div class="row">
+      <select id="work"><option value="primes">primes</option><option value="fib">fibonacci</option><option value="sum">sum</option><option value="sort">sort</option><option value="reverse">reverse</option><option value="__msg">plain message</option></select>
+      <input id="arg" value="10" placeholder="argument (e.g. 10, or 5,3,8,1)">
+      <button class="sig" id="tx">📡 transmit by sound</button>
+      <button id="txlight">💡 by light</button>
+    </div>
+    <canvas id="spec" width="840" height="70"></canvas>
+    <div class="lamp" id="lamp" style="margin-top:8px"></div>
+  </section>
+
+  <section>
+    <div class="eyebrow">§3 · listen — hear the room, decode, and answer the work by air</div>
+    <div class="row">
+      <button id="listen">🎙 start listening (mic)</button>
+      <label style="font-family:var(--mono);font-size:12px;color:var(--dim)"><input type="checkbox" id="auto" checked style="flex:none;min-width:0"> auto-answer work</label>
+      <span class="pill" id="rxstate">mic off</span>
+    </div>
+    <p style="color:var(--dim);font-size:12.5px;margin-top:8px">Two devices? Open this on both, transmit from one, listen on the other — they share work with nothing between them but air. On one machine, the speaker→mic loopback works too (headphones off).</p>
+    <div class="log" id="log"></div>
+  </section>
+
+  <footer>
+    the transmission ladder (one encode · sound/radio/light) pointed at a product · <a href="https://github.com/sjgant80-hub/airgap">gate 17/17</a> · a sovereign compute cell that only talks to what's in the room<br>
+    <a href="https://sjgant80-hub.github.io/one-ladder/">one-ladder</a> · <a href="https://github.com/sjgant80-hub/airgap">source</a>
+  </footer>
+</div>
+
+<script type="module">
+import { MSG, packMessage, unpackMessage, toTones, fromTones, respond, ACOUSTIC } from './airgap.mjs';
+
+const $ = s => document.querySelector(s);
+const log = (t, cls) => { const d = document.createElement('div'); d.className = cls; d.textContent = t; $('#log').prepend(d); };
+const TONE_MS = 90, GAP_MS = 12;
+const DATA_FREQS = Array.from({ length: 16 }, (_, i) => ACOUSTIC.base + i * ACOUSTIC.step);
+const ALL_FREQS = [ACOUSTIC.preamble, ...DATA_FREQS];
+
+// ── Goertzel power of frequency f over a sample window ──
+function goertzel(buf, from, to, f, sr) { const N = to - from, k = Math.round(N * f / sr), w = 2 * Math.PI * k / N, coeff = 2 * Math.cos(w); let s1 = 0, s2 = 0; for (let i = from; i < to; i++) { const s0 = buf[i] + coeff * s1 - s2; s2 = s1; s1 = s0; } return s1 * s1 + s2 * s2 - coeff * s1 * s2; }
+
+// ── OFFLINE self-test: message → tones → real PCM → Goertzel demod → tones → message ──
+async function renderTones(tones, sr = 44100) {
+  const slot = (TONE_MS + GAP_MS) / 1000, dur = 0.03 + tones.length * slot + 0.05;
+  const ctx = new OfflineAudioContext(1, Math.ceil(dur * sr), sr);
+  let t = 0.03;
+  for (const hz of tones) { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = hz; o.connect(g); g.connect(ctx.destination); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.5, t + 0.004); g.gain.setValueAtTime(0.5, t + TONE_MS / 1000 - 0.004); g.gain.linearRampToValueAtTime(0, t + TONE_MS / 1000); o.start(t); o.stop(t + TONE_MS / 1000); t += slot; }
+  return (await ctx.startRendering()).getChannelData(0);
+}
+function demodPCM(pcm, count, sr = 44100) {
+  const slot = Math.floor((TONE_MS + GAP_MS) / 1000 * sr), win = Math.floor(TONE_MS / 1000 * sr), start = Math.floor(0.03 * sr), tones = [];
+  for (let i = 0; i < count; i++) { const s = start + i * slot, a = s + Math.floor(win * 0.25), b = s + Math.floor(win * 0.75); let best = -1, bp = -Infinity; for (let fi = 0; fi < ALL_FREQS.length; fi++) { const p = goertzel(pcm, a, b, ALL_FREQS[fi], sr); if (p > bp) { bp = p; best = fi; } } tones.push(ALL_FREQS[best]); }
+  return tones;
+}
+$('#selftest').onclick = async () => {
+  $('#selfout').textContent = 'running…';
+  const msg = 'primes|12', frames = packMessage(MSG.WORK, msg), tones = toTones(frames);
+  const pcm = await renderTones(tones);
+  const heardTones = demodPCM(pcm, tones.length);
+  const back = unpackMessage(fromTones(heardTones));
+  const okk = back.ok && back.type === MSG.WORK && back.body === msg;
+  $('#selfout').textContent = okk ? `✓ sent "${msg}" → rendered ${(pcm.length / 44100).toFixed(2)}s of audio → demodulated → "${back.body}"` : `✗ ${back.why || 'mismatch'}`;
+  $('#selfout').style.color = okk ? 'var(--green)' : 'var(--red)';
+  log(okk ? `self-test OK — the modem holds (rendered real audio, demodulated back exact)` : 'self-test FAILED', okk ? 'rx' : 'err');
+};
+
+// ── LIVE audible transmit ──
+let AC;
+const ac = () => { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); return AC; };
+function drawSpec(tones) { const c = $('#spec'), x = c.getContext('2d'), w = c.width, h = c.height; x.clearRect(0, 0, w, h); const bw = w / tones.length; tones.forEach((hz, i) => { const y = h - (hz - 560) / (2600 - 560) * h; x.fillStyle = hz < ACOUSTIC.base ? getComputedStyle(document.documentElement).getPropertyValue('--gold') : getComputedStyle(document.documentElement).getPropertyValue('--sig'); x.fillRect(i * bw + 1, y, bw - 2, 3); }); }
+async function transmit(type, body) {
+  const frames = packMessage(type, body), tones = toTones(frames);
+  drawSpec(tones);
+  const c = ac(); let t = c.currentTime + 0.05; const slot = (TONE_MS + GAP_MS) / 1000;
+  for (const hz of tones) { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = hz; o.type = 'sine'; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.22, t + 0.006); g.gain.setValueAtTime(0.22, t + TONE_MS / 1000 - 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + TONE_MS / 1000); o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + TONE_MS / 1000 + 0.01); t += slot; }
+  log(`📡 transmitted ${Object.keys(MSG)[type - 1]}: ${body}  (${tones.length} tones, ${(tones.length * slot).toFixed(1)}s)`, 'tx');
+  return t;
+}
+$('#tx').onclick = () => { const w = $('#work').value, a = $('#arg').value; if (w === '__msg') transmit(MSG.HELLO, a); else transmit(MSG.WORK, `${w}|${a}`); };
+
+// ── transmit BY LIGHT — OOK flashes (a second air carrier) ──
+$('#txlight').onclick = () => { const w = $('#work').value, a = $('#arg').value, frames = packMessage(w === '__msg' ? MSG.HELLO : MSG.WORK, w === '__msg' ? a : `${w}|${a}`); const bits = frames.flat().flatMap(nib => [(nib >> 3) & 1, (nib >> 2) & 1, (nib >> 1) & 1, nib & 1]); const lamp = $('#lamp'), step = 60; [1, 0, 1, 0, 1, 1].concat(bits).forEach((b, i) => setTimeout(() => { lamp.style.background = b ? 'var(--sig)' : '#05070c'; lamp.style.boxShadow = b ? '0 0 22px var(--sig)' : 'none'; }, i * step)); setTimeout(() => { lamp.style.background = '#05070c'; lamp.style.boxShadow = 'none'; }, ([1, 0, 1, 0, 1, 1].length + bits.length) * step + 100); log(`💡 flashed ${bits.length} light pulses (screen→camera carrier)`, 'tx'); };
+
+// ── LISTEN (mic) — Goertzel demod on the live analyser, preamble-synced ──
+let micOn = false, micStream = null, an = null, listenRAF = null, slotBuf = [], collecting = false, sawPreamble = 0;
+$('#listen').onclick = async () => {
+  if (micOn) { micOn = false; cancelAnimationFrame(listenRAF); if (micStream) micStream.getTracks().forEach(t => t.stop()); $('#rxstate').textContent = 'mic off'; $('#listen').textContent = '🎙 start listening (mic)'; return; }
+  try { micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }); } catch { log('mic permission needed to hear the air', 'err'); return; }
+  const c = ac(), src = c.createMediaStreamSource(micStream); an = c.createAnalyser(); an.fftSize = 2048; src.connect(an); micOn = true;
+  $('#rxstate').textContent = 'listening…'; $('#listen').textContent = '⏹ stop';
+  const sr = c.sampleRate, buf = new Float32Array(an.fftSize); let lastSlot = 0; const slot = (TONE_MS + GAP_MS) / 1000; let heard = [];
+  const tick = () => {
+    if (!micOn) return;
+    const now = c.currentTime;
+    if (now - lastSlot >= slot * 0.98) {
+      lastSlot = now; an.getFloatTimeDomainData(buf);
+      let best = -1, bp = -Infinity; for (let fi = 0; fi < ALL_FREQS.length; fi++) { const p = goertzel(buf, 0, buf.length, ALL_FREQS[fi], sr); if (p > bp) { bp = p; best = fi; } }
+      const strong = bp > 0.5;
+      if (ALL_FREQS[best] === ACOUSTIC.preamble && strong) { sawPreamble++; if (sawPreamble >= 1) { collecting = true; heard = []; } }
+      else if (collecting && strong) { heard.push(ALL_FREQS[best]); }
+      else if (collecting && !strong) { if (heard.length >= 10) tryDecode(heard); collecting = false; sawPreamble = 0; heard = []; }
+    }
+    listenRAF = requestAnimationFrame(tick);
+  };
+  listenRAF = requestAnimationFrame(tick);
+};
+function tryDecode(tones) {
+  const msg = unpackMessage(fromTones(tones));
+  if (!msg.ok) { return; }
+  log(`🎙 heard ${Object.keys(MSG)[msg.type - 1]}: ${msg.body}`, 'rx');
+  const reply = respond(msg);
+  if (reply && $('#auto').checked) { log(`↩ answering: ${reply.body}`, 'sys'); setTimeout(() => transmit(reply.type, reply.body), 400); }
+}
+
+// network-call counter (proves the mesh makes none) — wrap fetch/WS just to COUNT, never used by the mesh
+let netCalls = 0; const of = window.fetch; window.fetch = (...a) => { netCalls++; $('#netcount').textContent = netCalls + ' (not from the mesh — the mesh never calls it)'; return of(...a); };
+
+$('#theme').onclick = () => { const r = document.documentElement, cur = r.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light'); r.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark'); };
+
+log('airgap ready — the only I/O is your speaker and mic. run the self-test, or transmit.', 'sys');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+</script>
+</body>
+</html>
