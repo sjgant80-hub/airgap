@@ -1,0 +1,17 @@
+[
+ {
+  "mutation": "> → >=",
+  "snippet": "export function toneToNibble(hz) { const v = Math.round((hz - ACOUSTIC.base) / ACOUSTIC.st",
+  "reason": "clamp-identity: at v===15 both > and >= return 15 — the clamp maps the boundary to itself, so the operators agree on every input."
+ },
+ {
+  "mutation": "< → <=",
+  "snippet": "function wordsToBytes(words) { const len = (words[0] >>> 0), out = []; for (let i = 1; i <",
+  "reason": "phantom-trimmed: one extra iteration reads words[length]=undefined → pushes four zero bytes, and the length prefix slices them off — no reachable output differs."
+ },
+ {
+  "mutation": "< → <=",
+  "snippet": "export function toneToNibble(hz) { const v = Math.round((hz - ACOUSTIC.base) / ACOUSTIC.st",
+  "reason": "clamp-identity: at v===0 both < and <= return 0 — the clamp maps the boundary to itself."
+ }
+]

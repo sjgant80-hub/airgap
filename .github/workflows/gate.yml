@@ -1,0 +1,26 @@
+name: proof-of-play
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - name: the codec + mesh against their falsifiable examples
+        run: node --test harden.test.mjs
+      # ⚑ Pinned. An unpinned gate is a gate somebody else can change. sw.js is deliberately
+      # ungated: a service-worker cache shell has no kernel logic — a gate there would be theatre.
+      - name: witness — try to break the mesh law, then READ the verdict (must be CLEAN)
+        run: |
+          git clone --depth 1 --branch v0.6 https://github.com/sjgant80-hub/witness.git /tmp/witness
+          node /tmp/witness/witness.mjs mutate airgap.mjs \
+            --timeout 90000 --cap 500 --baseline witness.airgap.baseline.json \
+            --test node --test harden.test.mjs | tee verdict.txt
+          grep -q '"clean": true' verdict.txt || { echo "::error::mutants survived — the gate is not clean"; exit 1; }
+      - name: witness — try to break the ladder law, then READ the verdict (must be CLEAN)
+        run: |
+          node /tmp/witness/witness.mjs mutate ladder.mjs \
+            --timeout 90000 --cap 500 --baseline witness.ladder.baseline.json \
+            --test node --test harden.test.mjs | tee verdict.txt
+          grep -q '"clean": true' verdict.txt || { echo "::error::mutants survived — the gate is not clean"; exit 1; }

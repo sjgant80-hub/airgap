@@ -1,0 +1,27 @@
+[
+ {
+  "mutation": "> → >=",
+  "snippet": "return v < 0 ? 0 : v > 15 ? 15 : v;                          // clamp → never throws",
+  "reason": "clamp-identity: at v===15 both forms return 15."
+ },
+ {
+  "mutation": "< → <=",
+  "snippet": "for (let v = 0; v < 16; v++) { const d = Math.abs(SOUND_TABLE[v] - hz); if (d < bd) { bd =",
+  "reason": "scan-overrun harmless: v<=16 reads SOUND_TABLE[16]=undefined → distance NaN, and NaN<bd is false — the phantom bin can never win."
+ },
+ {
+  "mutation": "< → <=",
+  "snippet": "for (let v = 0; v < 16; v++) { const d = Math.abs(SOUND_TABLE[v] - hz); if (d < bd) { bd =",
+  "reason": "tie-unconstructible: d<=bd differs only when two distinct table pitches sit at the exact same float distance from hz; the table is strictly increasing and no input yields a bit-identical tie."
+ },
+ {
+  "mutation": "< → <=",
+  "snippet": "return v < 0 ? 0 : v > 15 ? 15 : v;                          // clamp → never throws",
+  "reason": "clamp-identity: at v===0 both forms return 0."
+ },
+ {
+  "mutation": "&& → ||",
+  "snippet": "return { pattern, carried, heard, n: back, ok: ok && back === (n >>> 0) };",
+  "reason": "unreachable-difference: all three rungs are bijections on valid symbols, so decode(heard) always returns ok:true through the public roundtrip — ok=false, the only distinguishing state, cannot be reached."
+ }
+]
